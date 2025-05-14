@@ -1,3 +1,9 @@
+mod error;
+mod notebook;
+mod media;
+
+
 fn main() {
-    println!("Hello, world!");
+    let nb = notebook::read_notebook("./tests/hello.ipynb");
+    println!("{:#?}", nb);
 }
