@@ -1,4 +1,6 @@
 
+use std::string;
+
 use thiserror::Error;
 
 
@@ -18,13 +20,16 @@ pub enum NbconvertError {
   
   #[error("PDF generation error: {0}")]
   PdfError(String),
-    
+
   #[error("Image processing error: {0}")]
   ImageError(#[from] image::ImageError),
     
   #[error("Markdown processing error: {0}")]
   MarkdownError(String),
-    
+  
+  #[error("OnceLock already initialized: {0}")]
+  OnceLockError(String),
+
   #[error("Unknown error: {0}")]
   Unknown(String),
 }

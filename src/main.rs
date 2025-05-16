@@ -1,9 +1,23 @@
 mod error;
 mod notebook;
 mod media;
+mod typst_content;
 
+use std::sync::OnceLock;
 
-fn main() {
-    let nb = notebook::read_notebook("./tests/hello.ipynb");
+use notebook::{convert_notebook, convert_v4_notebook};
+
+use crate::error::Result;
+
+/// Where to find or load the images.
+static IMG_PATH: OnceLock<String> = OnceLock::new();
+
+fn main() -> Result<()> {
+    let nb = notebook::read_notebook("./tests/hello.ipynb")?;
     println!("{:#?}", nb);
+
+    convert_notebook(&nb)?;
+
+
+    Ok(())
 }

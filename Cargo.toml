@@ -15,5 +15,6 @@ syntect = "5.2.0"
 tempfile = "3.20.0"
 markdown = "1.0.0"
 jupyter-protocol = "0.6.0"
+typst = "0.13.1"
 
 
