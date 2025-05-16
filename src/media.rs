@@ -11,6 +11,32 @@ pub fn process_media(media: &Media) -> String {
 
     let mut result = String::new();
 
+    for data in &media.content {
+        result += parse_media(data).as_str();
+    }
+
     result
-    
+}
+
+/// Parse given media.
+fn parse_media(data: &MediaType) -> String {
+
+    let mut result = String::new();
+
+
+    match data {
+        MediaType::DataTable(data) => {
+
+        }
+        MediaType::Latex(data) => {
+            result += format!(
+                "#mimath(`{}`)",
+                data
+            ).as_str();
+        }
+        _ => unimplemented!()
+    }
+
+    result
+
 }

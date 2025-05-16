@@ -9,14 +9,32 @@
   date: "May 16, 2025",
 )
 
-#code-block("asdasd
+#block[
+#code-block("x = 5
+print(x)", lang: "python", count: 1)
+#output-block("5
+")
+]
+#block[
+= Let's try Latex
 
+#mimath(`$$
+\begin{aligned}
+\int_0^{10} x^2 \mathrm{d}x
+\end{aligned}
+$$`)
+#mi(`x`) is a number?
 
+#underline[underline]
 
-asdasd", lang: "python", count: "1")
+#underline[
 
-#output-block("SHABBB")
+hhhh
 
-#link("x")[y]
+]
 
-#strike[x]
+]
+#block[
+= Hello World
+
+]

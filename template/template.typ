@@ -2,8 +2,6 @@
 
 #import "@preview/mitex:0.2.5": * // LaTex Support for Typst.
 
-
-
 #let radius = 3pt
 #let inset = 8pt
 

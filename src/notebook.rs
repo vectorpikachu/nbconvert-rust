@@ -55,8 +55,8 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
             v4::Cell::Markdown { id:_ , metadata: _, source, attachments } => {
                 result += &parse_markdown(source, attachments);
             }
-            v4::Cell::Raw { id, metadata, source } => {
-
+            v4::Cell::Raw { id: _, metadata: _, source } => {
+                result += source.join("\n").as_str();
             }
         }
         result += "]\n";
@@ -89,8 +89,8 @@ pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstConte
             legacy::Cell::Markdown { id: _, metadata: _, source, attachments } => {
                 result += &parse_markdown(source, attachments);
             }
-            legacy::Cell::Raw { id, metadata, source } => {
-
+            legacy::Cell::Raw { id: _, metadata: _, source } => {
+                result += source.join("\n").as_str();
             }
         }
     }
