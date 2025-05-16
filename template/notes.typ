@@ -9,32 +9,13 @@
   date: "May 16, 2025",
 )
 
-#block[
+
 #code-block("x = 5
 print(x)", lang: "python", count: 1)
 #output-block("5
 ")
-]
-#block[
-= Let's try Latex
+#underline[]hhh is a num?
 
-#mimath(`$$
-\begin{aligned}
-\int_0^{10} x^2 \mathrm{d}x
-\end{aligned}
-$$`)
-#mi(`x`) is a number?
+#figure(align(center, image("../tests/logo.jpg", width: 50%)))
 
-#underline[underline]
-
-#underline[
-
-hhhh
-
-]
-
-]
-#block[
 = Hello World
-
-]

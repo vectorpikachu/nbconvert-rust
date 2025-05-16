@@ -30,6 +30,28 @@
   )
 }
 
+#let block-quote(body) = context {
+  let size = measure(body)
+  grid(
+    columns: (4pt, auto),
+    rows: auto,
+    gutter: 0pt,
+    rect(
+      fill: luma(180),
+      height: size.height + 2 * inset,
+      radius: (left: radius),
+    ),
+    block(
+      fill: luma(240),
+      height: size.height + 2 * inset,
+      inset: inset,
+      radius: (right: radius),
+      width: 100%,
+      body,
+    ),
+  )
+}
+
 // The project function defines how your document looks.
 // It takes your content and some metadata and formats it.
 // Go ahead and customize it to your liking!

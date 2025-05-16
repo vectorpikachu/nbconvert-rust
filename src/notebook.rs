@@ -45,8 +45,6 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
     let mut result = String::new();
 
     for cell in &notebook.cells {
-        // Wrap every code and its ouputs in blocks.
-        result += "#block[\n";
         match cell {
             v4::Cell::Code { id: _, metadata: _, execution_count, source, outputs } => {
                 result += &parse_code(source, execution_count);
@@ -59,7 +57,6 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
                 result += source.join("\n").as_str();
             }
         }
-        result += "]\n";
     }
 
     println!("{}\n", result);
