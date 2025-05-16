@@ -16,3 +16,7 @@
 asdasd", lang: "python", count: "1")
 
 #output-block("SHABBB")
+
+#link("x")[y]
+
+#strike[x]

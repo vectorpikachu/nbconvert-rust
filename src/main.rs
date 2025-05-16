@@ -2,6 +2,7 @@ mod error;
 mod notebook;
 mod media;
 mod typst_content;
+mod markdown;
 
 use std::sync::OnceLock;
 

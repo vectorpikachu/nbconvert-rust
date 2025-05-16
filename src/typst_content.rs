@@ -1,4 +1,4 @@
 
-pub struct TypstCotent {
+pub struct TypstContent {
   pub content: String,
 }

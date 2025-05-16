@@ -1,5 +1,6 @@
 use crate::error::{NbconvertError, Result};
-use crate::typst_content::TypstCotent;
+use crate::markdown::parse_markdown;
+use crate::typst_content::TypstContent;
 use crate::media::process_media;
 
 use nbformat::v4::Output;
@@ -21,7 +22,7 @@ pub fn read_notebook<P: AsRef<Path>>(path: P) -> Result<Notebook> {
 }
 
 /// Convert a notebook to Typst.
-pub fn convert_notebook(notebook: &Notebook) -> Result<TypstCotent> {
+pub fn convert_notebook(notebook: &Notebook) -> Result<TypstContent> {
 
     match notebook {
         Notebook::V4(notebook) => convert_v4_notebook(notebook),
@@ -31,7 +32,7 @@ pub fn convert_notebook(notebook: &Notebook) -> Result<TypstCotent> {
 }
 
 /// Parse a V4 Version notebook.
-pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstCotent> {
+pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
     let langugae = match &notebook.metadata.language_info {
         Some(info) => info.name.clone(),
         None => "text".to_owned()
@@ -51,8 +52,8 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstCotent> {
                 result += &parse_code(source, execution_count);
                 result += &parse_output(outputs);
             }
-            v4::Cell::Markdown { id, metadata, source, attachments } => {
-
+            v4::Cell::Markdown { id:_ , metadata: _, source, attachments } => {
+                result += &parse_markdown(source, attachments);
             }
             v4::Cell::Raw { id, metadata, source } => {
 
@@ -63,12 +64,12 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstCotent> {
 
     println!("{}\n", result);
 
-    Ok(TypstCotent { content: result })
+    Ok(TypstContent { content: result })
 }
 
 
 /// Parse a legacy version notebook.
-pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstCotent> {
+pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstContent> {
     let langugae = match &notebook.metadata.language_info {
         Some(info) => info.name.clone(),
         None => "text".to_owned()
@@ -85,8 +86,8 @@ pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstCoten
                 result += &parse_code(source, execution_count);
                 result += &parse_output(outputs);
             }
-            legacy::Cell::Markdown { id, metadata, source, attachments } => {
-
+            legacy::Cell::Markdown { id: _, metadata: _, source, attachments } => {
+                result += &parse_markdown(source, attachments);
             }
             legacy::Cell::Raw { id, metadata, source } => {
 
@@ -95,7 +96,7 @@ pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstCoten
     }
 
 
-    Ok(TypstCotent { content: result })
+    Ok(TypstContent { content: result })
 }
 
 
