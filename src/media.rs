@@ -34,6 +34,9 @@ fn parse_media(data: &MediaType) -> String {
                 data
             ).as_str();
         }
+        MediaType::Png(data) => {
+            
+        }
         _ => unimplemented!()
     }
 

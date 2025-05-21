@@ -1,6 +1,5 @@
 use std::{collections::HashMap, fs::{self, File}, io, path::{Path, PathBuf}, sync::{LazyLock, RwLock}};
 
-use base64::decode;
 use markdown::{mdast::{self, Node}, to_mdast, Constructs, ParseOptions};
 use reqwest::blocking;
 use serde_json::Value;
@@ -20,7 +19,11 @@ static FOOTNOTE_DEFINITION: LazyLock<RwLock<HashMap<String, String>>> = LazyLock
 
 static DOWNLOAD_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     // 这里指定下载目录，例如项目根下的 "downloads"
-    PathBuf::from("downloads")
+    let path = PathBuf::from("downloads");
+    if let Err(e) = fs::create_dir_all(&path) {
+        panic!("Failed to create downloads directory: {}", e);
+    }
+    path
 });
 
 /// Name - Path in String.
@@ -33,11 +36,11 @@ pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>) -> Stri
     let mut result = String::new();
 
     let ast = to_mdast(
-        source.join("\n").as_str(),
+        source.join("").as_str(),
         &ParseOptions {
             constructs: Constructs {
-                math_flow: true,
-                math_text: true,
+                math_flow: false,
+                math_text: false,
                 ..Constructs::gfm() // GitHub Flavored Markdown.
             },
             ..Default::default()
@@ -200,10 +203,23 @@ fn parse_ast(node: &Node) -> String {
             // [a] which is defined before.
         }
         Node::List(node) => {
-            // TODO!
+            for child in &node.children {
+                // 判断是 enum 还是 list.
+                result += if node.ordered { "+ " } else { "- " };
+                // 难点在于如何处理嵌套的 List.
+                let mut list_item = parse_ast(child);
+                list_item = list_item.trim_end_matches("\n").replace("\n", "\n  ");
+                list_item += "\n";
+                result += list_item.as_str();
+            }
+            
+            result += "\n";
         }
         Node::ListItem(node) => {
-
+            // Node 是有一些Markdown content组成的.
+            for child in &node.children {
+                result += parse_ast(child).as_str();
+            }
         }
         Node::Math(node) => {
             result += format!(
@@ -211,19 +227,19 @@ fn parse_ast(node: &Node) -> String {
                 node.value
             ).as_str();
         }
-        Node::MdxFlowExpression(node) => {
+        Node::MdxFlowExpression(_) => {
             // {a}
         }
-        Node::MdxJsxFlowElement(node) => {
+        Node::MdxJsxFlowElement(_) => {
 
         }
-        Node::MdxJsxTextElement(node) => {
+        Node::MdxJsxTextElement(_) => {
 
         }
-        Node::MdxTextExpression(node) => {
+        Node::MdxTextExpression(_) => {
 
         }
-        Node::MdxjsEsm(node) => {
+        Node::MdxjsEsm(_) => {
 
         }
         Node::Paragraph(node) => {
@@ -232,12 +248,13 @@ fn parse_ast(node: &Node) -> String {
                 children_result += parse_ast(child).as_str();
             }
             result += children_result.as_str();
-            result += "\n\n";
+            result += "\n";
         }
         Node::Root(node) => {
             // This is the root node representing a doc.
             for child in &node.children {
                 result += parse_ast(child).as_str();
+                result += "\n"; // Separating the paragraph.
             }
         }
         Node::Strong(node) => {
@@ -249,13 +266,67 @@ fn parse_ast(node: &Node) -> String {
             result += "*";
         }
         Node::Table(node) => {
-
+            // Typst 里表格的语法：
+            /* #table(
+                columns: 3,
+                align: (left, center, auto, ),
+                table.header([ggg], [sss], [sss]), // header cells.
+                [x], [y], [z]
+                ) */
+            result += format!(
+                "#table(
+  columns: {},
+  align: ({}),\n",
+                node.align.len(),
+                node.align.iter()
+                          .map(|a| {
+                            match a {
+                                mdast::AlignKind::Center => "center".to_string(),
+                                mdast::AlignKind::Left => "left".to_string(),
+                                mdast::AlignKind::Right => "right".to_string(),
+                                mdast::AlignKind::None => "auto".to_string(),
+                            }
+                          })
+                          .collect::<Vec<String>>()
+                          .join(", ")
+            ).as_str();
+            let mut children = node.children.clone();
+            // The first row is title.
+            let mut table_header = parse_ast(&children.remove(0)); 
+            table_header.pop(); // Delete the newline char.
+            result += format!(
+                "  table.header(
+  {}
+  ),\n",
+                table_header
+            ).as_ref();
+            // The following rows are contents.
+            let mut children_result = String::new();
+            for child in &children {
+                children_result += parse_ast(child).as_str();
+            }
+            result += children_result.as_str();
+            result += ")\n\n";
         }
         Node::TableCell(node) => {
-
+            // 处理Table Cell.
+            result += "[";
+            let mut children_result = String::new();
+            for child in &node.children {
+                children_result += parse_ast(child).as_str();
+            }
+            result += children_result.as_str();
+            result += "], ";
         }
         Node::TableRow(node) => {
-
+            result += "  ";
+            // Child of row: Cell.
+            let mut children_result = String::new();
+            for child in &node.children {
+                children_result += parse_ast(child).as_str();
+            }
+            result += children_result.as_str();
+            result += "\n";
         }
         Node::Text(node) => {
             result += node.value.as_str();
@@ -264,13 +335,12 @@ fn parse_ast(node: &Node) -> String {
             // The long long line. --------
             result += "#line(length: 100%)\n";
         }
-        Node::Toml(node) => {
+        Node::Toml(_) => {
             // TODO!
         }
-        Node::Yaml(node) => {
+        Node::Yaml(_) => {
             // TODO!
         }
-        _ => unimplemented!()
     }
 
     result

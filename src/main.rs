@@ -17,8 +17,9 @@ fn main() -> Result<()> {
     let nb = notebook::read_notebook("./tests/hello.ipynb")?;
     println!("{:#?}", nb);
 
-    convert_notebook(&nb)?;
+    let typst_content = convert_notebook(&nb)?;
 
+    
 
     Ok(())
 }
