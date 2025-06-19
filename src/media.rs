@@ -1,5 +1,4 @@
-use jupyter_protocol::{Media, MediaType, TabularDataResource};
-use serde_json::Value;
+use jupyter_protocol::{Media, MediaType};
 
 
 /// Process the given media.
@@ -18,15 +17,15 @@ pub fn process_media(media: &Media) -> String {
     result
 }
 
-/// Parse given media.
+/// Parse given type of media. 
 fn parse_media(data: &MediaType) -> String {
 
     let mut result = String::new();
 
 
     match data {
-        MediaType::DataTable(data) => {
-
+        MediaType::DataTable(_data) => {
+            // TODO!
         }
         MediaType::Latex(data) => {
             result += format!(
@@ -34,8 +33,10 @@ fn parse_media(data: &MediaType) -> String {
                 data
             ).as_str();
         }
-        MediaType::Png(data) => {
-            
+        // Image data is all base64 encoded. These variants could all accept <Vec<u8>> as the
+        // data. However, not all users of this library will need immediate decoding of the data.
+        MediaType::Png(_data) => {
+            // TODO!
         }
         _ => unimplemented!()
     }

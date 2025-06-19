@@ -1,6 +1,6 @@
 use crate::error::{NbconvertError, Result};
 use crate::markdown::parse_markdown;
-use crate::typst_content::TypstContent;
+use crate::typst_content::{escape_code, escape_vec_code, TypstContent};
 use crate::media::process_media;
 
 use nbformat::v4::Output;
@@ -14,7 +14,7 @@ use std::sync::OnceLock;
 /// The Jupyter Notebook's language.
 static LANGUAGE: OnceLock<String> = OnceLock::new();
 
-/// 读入给定目录的Notebook
+/// Read a Jupyter Notebook from the given path.
 pub fn read_notebook<P: AsRef<Path>>(path: P) -> Result<Notebook> {
     let file_content = fs::read_to_string(path)?;
     let notebook = parse_notebook(&file_content)?;
@@ -59,8 +59,6 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
         }
     }
 
-    println!("{}\n", result);
-
     Ok(TypstContent { content: result })
 }
 
@@ -104,19 +102,19 @@ fn parse_code(code: &Vec<String>, count: &Option<i32>) -> String {
     // Refer to the [template.typ] to see the def. of code-block.
     result += "#code-block(";
     result += format!(
-        "\"{}\", ", code.join("").as_str() 
+        "\"{}\", ", escape_vec_code(code)
     ).as_str();
     match count {
         Some(count) => {
             result += format!(
-                "lang: \"{}\", count: {})\n",
+                "lang: \"{}\", count: {})\n\n",
                 LANGUAGE.get().unwrap(),
                 count
             ).as_str();
         }
         None => {
             result += format!(
-                "lang: \"{}\", count: none)\n",
+                "lang: \"{}\", count: none)\n\n",
                 LANGUAGE.get().unwrap(),
             ).as_str();
         }
@@ -138,14 +136,14 @@ fn parse_output(outputs: &Vec<Output>) -> String {
             }
             v4::Output::Stream { name: _, text } => {
                 result += format!(
-                    "#output-block(\"{}\")\n",
-                    text.0
+                    "#output-block(\"{}\")\n\n",
+                    escape_code(&text.0)
                 ).as_str();
             }
             v4::Output::Error(error) => {
                 result += format!(
-                    "#output-block(\"{}\")\n",
-                    error.traceback.join("\n")
+                    "#output-block(\"{}\")\n\n",
+                    escape_vec_code(&error.traceback)
                 ).as_str();
             }
         }

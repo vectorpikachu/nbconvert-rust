@@ -1,10 +1,11 @@
+use core::panic;
 use std::{collections::HashMap, fs::{self, File}, io, path::{Path, PathBuf}, sync::{LazyLock, RwLock}};
 
 use markdown::{mdast::{self, Node}, to_mdast, Constructs, ParseOptions};
 use reqwest::blocking;
 use serde_json::Value;
 
-use html2typst::parse_html;
+// use html2typst::parse_html;
 use url::Url;
 use base64::prelude::*;
 
@@ -39,8 +40,8 @@ pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>) -> Stri
         source.join("").as_str(),
         &ParseOptions {
             constructs: Constructs {
-                math_flow: false,
-                math_text: false,
+                math_flow: true,
+                math_text: true,
                 ..Constructs::gfm() // GitHub Flavored Markdown.
             },
             ..Default::default()
@@ -51,8 +52,6 @@ pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>) -> Stri
     insert_attachments(attachments);
 
     parse_definition(&ast);
-
-    println!("{:#?}", ast);
 
     result += parse_ast(&ast).as_str();
 
@@ -72,7 +71,7 @@ fn parse_ast(node: &Node) -> String {
                 children_result += parse_ast(child).as_str();
             }
             result += format!(
-                "#block-quote(\"{}\")\n\n",
+                "#block-quote[{}]\n\n",
                 children_result
             ).as_str();
         }
@@ -81,6 +80,8 @@ fn parse_ast(node: &Node) -> String {
             result += "\\ \n";
         }
         Node::Code(node) => {
+            // We use the code block in Typst.
+            // So its special characters should not be escaped 
             result += format!(
                 "```{}\n{}\n```\n\n",
                 node.lang.clone().unwrap_or("text".to_string()),
@@ -139,7 +140,10 @@ fn parse_ast(node: &Node) -> String {
             ).as_str();
         }
         Node::Html(node) => {
-            result += parse_html(node.value.as_str()).as_str();
+            panic!("HTML node encountered: {}", node.value);
+            // !Since the md_ast parse of HTML is really restricted,
+            // Using the html may be dangerous here!
+            // result += parse_html(node.value.as_str()).as_str();
         }
         Node::Image(node) => {
             // ![alpha](https://example.com/favicon.ico "bravo")
@@ -172,8 +176,9 @@ fn parse_ast(node: &Node) -> String {
                 }
             }
         }
-        Node::ImageReference(node) => {
-            // todo
+        Node::ImageReference(_node) => {
+            panic!("Image reference encountered, directly specify it in Jupyter notebook.");
+            // !DO not use image reference.
         }
         Node::InlineCode(node) => {
             result += format!(
@@ -199,8 +204,9 @@ fn parse_ast(node: &Node) -> String {
                 children_result
             ).as_str();
         }
-        Node::LinkReference(node) => {
+        Node::LinkReference(_node) => {
             // [a] which is defined before.
+            panic!("Link reference encountered, directly specify it in Jupyter notebook.");
         }
         Node::List(node) => {
             for child in &node.children {
@@ -379,9 +385,9 @@ pub fn download(url: &Url) -> String {
         .and_then(|os| os.to_str());
 
     let local_name = if let Some(ext) = ext_opt {
-        format!("downloaded.{}", ext)       // 有后缀：downloaded.txt
+        format!("downloaded.{}", ext)       // With extension: use it.
     } else {
-        filename.to_string()                // 无后缀：保持原名
+        filename.to_string()                // Without extension: use the name.
     };
 
     let local_path = DOWNLOAD_DIR.join(local_name);
@@ -403,9 +409,11 @@ fn insert_attachments(attachments: &Option<Value>) {
     let mut guard = ATTACHMENTS.write().unwrap();
 
     for (filename, bundle) in obj {
-        // bundle 是另一个对象，键是 MIME 类型，值是 Base64 字符串
+        // bundle is a JSON object with MIME type as key and Base64 data as value.
+        // E.g. {"image/png": "iVBORw0KGgoAAAANSUhEUgAA..."}
         if let Value::Object(inner) = bundle {
-            // 拿第一个 MIME 类型的 Base64 数据（例如 "image/png" → "iVBOR..."）
+            // We only handle the first value in the object.
+            // This is a simplification, as the notebook may have multiple MIME types.
             if let Some(Value::String(data_b64)) = inner.values().next() {
                 let bytes = BASE64_STANDARD.decode(data_b64).unwrap();
                 let local_path = DOWNLOAD_DIR.join(filename);

@@ -2,21 +2,20 @@
 name = "nbconvert-rust"
 version = "0.1.0"
 edition = "2021"
-authors = ["Hangzhou Lyu <lvhangzhou503@126.com>", "Xiao Hu <S20233102246@cau.edu.cn>"]
+authors = ["Hangzhou Lyu <lvhangzhou503@126.com>"]
 description = "A tool to convert Jupyter notebooks to PDF."
 
 [dependencies]
 thiserror = "2.0.12"
-nbformat = "0.10.0"
+nbformat = "0.12.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 image = "0.25.6"
 syntect = "5.2.0"
 tempfile = "3.20.0"
 markdown = "1.0.0"
-jupyter-protocol = "0.6.0"
-typst = "0.13.1"
-html2typst = { path = "./html2typst" }
+jupyter-protocol = "0.8.0"
 url = "2.5.4"
 reqwest = { version = "0.12.15", features = ["json", "blocking"] } 
 base64 = "0.22.1"
+clap = { version = "4.4.0", features = ["derive"] }
