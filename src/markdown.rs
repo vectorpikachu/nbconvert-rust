@@ -219,7 +219,7 @@ fn parse_ast(node: &Node) -> String {
                 result += list_item.as_str();
             }
             
-            result += "\n";
+            // result += "\n";
         }
         Node::ListItem(node) => {
             // Node 是有一些Markdown content组成的.
@@ -229,7 +229,7 @@ fn parse_ast(node: &Node) -> String {
         }
         Node::Math(node) => {
             result += format!(
-                "#mimath(`$$\n{}\n$$`)\n",
+                "#mimath(`$$\n{}\n$$`)",
                 node.value
             ).as_str();
         }

@@ -145,7 +145,7 @@ fn create_template(output_path: &Path) -> PathBuf {
     width: 100%
   )
   v(0pt, weak: true)
-  let c = raw("[" + str(count) + "]:")
+    let c = if count == none { raw("[ ]:") } else { raw("[" + str(count) + "]:") }
   let size = measure(c)
   box(height: 0pt, move(dx: -size.width, dy: -size.height - inset, c))
 }
