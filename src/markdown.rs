@@ -86,7 +86,7 @@ fn parse_ast(node: &Node, html_queue: &mut VecDeque<&str>, download_dir: &Path) 
         Node::Definition(_) => {
             // Defintion, like the Link in Typst.
             // [x]: y, we will use [x] to create a link later.
-            // Pre-processed before.
+            // Pre-processed before in parse_definition.
         }
         Node::Delete(node) => {
             // Delete Line.
@@ -112,7 +112,8 @@ fn parse_ast(node: &Node, html_queue: &mut VecDeque<&str>, download_dir: &Path) 
         }
         Node::FootnoteDefinition(_) => {
             // Like the definition.
-            // Pre-processed.
+            // Pre-processed in parse_definition.
+            // We will use [^x] to create a footnote later.
         }
         Node::FootnoteReference(node) => {
             if let Some(link) = FOOTNOTE_DEFINITION.read().unwrap().to_owned().get(node.identifier.as_str()) {
