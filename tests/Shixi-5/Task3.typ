@@ -1,13 +1,11 @@
 #import "template.typ": *
 
 #show: project.with(
-  title: "Was",
-  authors: (
-    (name: "VectorPikachu", email: none, affiliation: "Peking University"),
-    (name: "Pikachu", email: "oiakkakak@333.com", affiliation: "EECS"),
-  ),
-  date: datetime(year: 2015, month: 6, day: 19).display("[year]年[month padding:space]月[day padding:space]日")
+  title: "Untitled Notebook",
+authors: ((name: "Anonymous", email: none, affiliation: none), ),
+date: datetime.today().display("[year]年[month padding:space]月[day padding:space]日"),
 )
+
 
 
 = 任务三：基于SQL的多元线性回归
@@ -20,33 +18,28 @@
 #mimath(`$$
 y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \beta_3 x_3 + \beta_4 x_4 + \beta_5 x_5 + \beta_6 x_6 + u
 $$`)
-
 注意: 这里的#mi(`y`)代表上面的因变量`score`, 而#mi(`x_1, x_2, x_3, x_4, x_5, x_6`)分别代表自变量`GDP_per_capita`, `Social_support`, `Healthy_life_expectancy`, `Freedom_to_make_life_choices`, `Generosity`, `Perceptions_of_corruption`.
 
-我们设输入向量为 #mi(`\mathbf{x}=(1,x_1,x_2,x_3,x_4,x_5,x_6)`), 设系数向量为 #mi(`\mathbf{\beta}=(\beta_0,\beta_1,\beta_2,\beta_3,\beta_4,\beta_5,\beta_6)`), 那么我们的目标是最小化所有样本上的*均方误差*:
+我们设输入向量为#mi(`\mathbf{x}=(1,x_1,x_2,x_3,x_4,x_5,x_6)`), 设系数向量为#mi(`\mathbf{\beta}=(\beta_0,\beta_1,\beta_2,\beta_3,\beta_4,\beta_5,\beta_6)`), 那么我们的目标是最小化所有样本上的*均方误差*:
 
 #mimath(`$$
 J(\mathbf{\beta}) = \frac{1}{n} \sum_{i=1}^{n} (y_i - \mathbf{x}_i^T \mathbf{\beta})^2
 $$`)
-
 首先计算出:
 
 #mimath(`$$
 \frac{\partial J(\mathbf{\beta})}{\partial \beta_j} = -\frac{2}{n} \sum_{i=1}^{n} (y_i - \mathbf{x}_i^T \mathbf{\beta}) x_{ij}, j = 0, 1, 2, 3, 4, 5, 6
 $$`)
-
-这里认为 #mi(`x_0=1`).
+这里认为#mi(`x_0=1`).
 
 我们使用梯度下降的算法:
 
 #mimath(`$$
 \beta_j \leftarrow \beta_j - \alpha \frac{\partial J(\mathbf{\beta})}{\partial \beta_j}, j = 0, 1, 2, 3, 4, 5, 6
 $$`)
-
 #mimath(`$$
 \beta_j \leftarrow \beta_j + \frac{2\alpha}{n} \sum_{i=1}^{n} (y_i - \mathbf{x}_i^T \mathbf{\beta}) x_{ij}, j = 0, 1, 2, 3, 4, 5, 6
 $$`)
-
 #code-block("import sqlite3", lang: "python", count: 1)
 
 #code-block("def print_table_schema(db_path: str, table_name: str):
@@ -154,11 +147,30 @@ conn.commit()
 
 print_table_schema('happiness.db', 'happiness')", lang: "python", count: 4)
 
-#output-block("cid |          column_name           | data_type  | not_null | default_value | is_pk------------------------------------------------------------------------------------------ 0  |               id               |  INTEGER   |    0     |     None      |    1 1  |          Overall_rank          |  INTEGER   |    1     |     None      |    0 2  |            Country             |    TEXT    |    1     |     None      |    0 3  |             Score              |    REAL    |    1     |     None      |    0 4  |         GDP_per_capita         |    REAL    |    1     |     None      |    0 5  |         Social_support         |    REAL    |    1     |     None      |    0 6  |    Healthy_life_expectancy     |    REAL    |    1     |     None      |    0 7  |  Freedom_to_make_life_choices  |    REAL    |    1     |     None      |    0 8  |           Generosity           |    REAL    |    1     |     None      |    0 9  |   Perceptions_of_corruption    |    REAL    |    1     |     None      |    0")
+#output-block("cid |          column_name           | data_type  | not_null | default_value | is_pk
+------------------------------------------------------------------------------------------
+ 0  |               id               |  INTEGER   |    0     |     None      |    1
+ 1  |          Overall_rank          |  INTEGER   |    1     |     None      |    0
+ 2  |            Country             |    TEXT    |    1     |     None      |    0
+ 3  |             Score              |    REAL    |    1     |     None      |    0
+ 4  |         GDP_per_capita         |    REAL    |    1     |     None      |    0
+ 5  |         Social_support         |    REAL    |    1     |     None      |    0
+ 6  |    Healthy_life_expectancy     |    REAL    |    1     |     None      |    0
+ 7  |  Freedom_to_make_life_choices  |    REAL    |    1     |     None      |    0
+ 8  |           Generosity           |    REAL    |    1     |     None      |    0
+ 9  |   Perceptions_of_corruption    |    REAL    |    1     |     None      |    0
+")
 
 #code-block("print_rows('happiness.db', 'happiness', 5)", lang: "python", count: 5)
 
-#output-block("id | Overall_rank | Country | Score | GDP_per_capita | Social_support | Healthy_life_expectancy | Freedom_to_make_life_choices | Generosity | Perceptions_of_corruption-----------------------------------------------------------------------------------------------------------------------------------------------------------------------1 | 1 | Finland     | 7.769 | 1.34  | 1.587 | 0.986 | 0.596 | 0.153 | 0.3932 | 2 | Denmark     | 7.6   | 1.383 | 1.573 | 0.996 | 0.592 | 0.252 | 0.41 3 | 3 | Norway      | 7.554 | 1.488 | 1.582 | 1.028 | 0.603 | 0.271 | 0.3414 | 4 | Iceland     | 7.494 | 1.38  | 1.624 | 1.026 | 0.591 | 0.354 | 0.1185 | 5 | Netherlands | 7.488 | 1.396 | 1.522 | 0.999 | 0.557 | 0.322 | 0.298")
+#output-block("id | Overall_rank | Country | Score | GDP_per_capita | Social_support | Healthy_life_expectancy | Freedom_to_make_life_choices | Generosity | Perceptions_of_corruption
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1 | 1 | Finland     | 7.769 | 1.34  | 1.587 | 0.986 | 0.596 | 0.153 | 0.393
+2 | 2 | Denmark     | 7.6   | 1.383 | 1.573 | 0.996 | 0.592 | 0.252 | 0.41 
+3 | 3 | Norway      | 7.554 | 1.488 | 1.582 | 1.028 | 0.603 | 0.271 | 0.341
+4 | 4 | Iceland     | 7.494 | 1.38  | 1.624 | 1.026 | 0.591 | 0.354 | 0.118
+5 | 5 | Netherlands | 7.488 | 1.396 | 1.522 | 0.999 | 0.557 | 0.322 | 0.298
+")
 
 #code-block("# 插入数据, 从当前目录下的 世界幸福指数数据集 读取
 # 里面有 2015 - 2019 年的世界幸福指数数据
@@ -183,7 +195,14 @@ conn.commit()
 print_rows('happiness.db', 'happiness', 5)
 ", lang: "python", count: 6)
 
-#output-block("id | Overall_rank | Country | Score | GDP_per_capita | Social_support | Healthy_life_expectancy | Freedom_to_make_life_choices | Generosity | Perceptions_of_corruption-----------------------------------------------------------------------------------------------------------------------------------------------------------------------1 | 1 | Finland     | 7.769 | 1.34  | 1.587 | 0.986 | 0.596 | 0.153 | 0.3932 | 2 | Denmark     | 7.6   | 1.383 | 1.573 | 0.996 | 0.592 | 0.252 | 0.41 3 | 3 | Norway      | 7.554 | 1.488 | 1.582 | 1.028 | 0.603 | 0.271 | 0.3414 | 4 | Iceland     | 7.494 | 1.38  | 1.624 | 1.026 | 0.591 | 0.354 | 0.1185 | 5 | Netherlands | 7.488 | 1.396 | 1.522 | 0.999 | 0.557 | 0.322 | 0.298")
+#output-block("id | Overall_rank | Country | Score | GDP_per_capita | Social_support | Healthy_life_expectancy | Freedom_to_make_life_choices | Generosity | Perceptions_of_corruption
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1 | 1 | Finland     | 7.769 | 1.34  | 1.587 | 0.986 | 0.596 | 0.153 | 0.393
+2 | 2 | Denmark     | 7.6   | 1.383 | 1.573 | 0.996 | 0.592 | 0.252 | 0.41 
+3 | 3 | Norway      | 7.554 | 1.488 | 1.582 | 1.028 | 0.603 | 0.271 | 0.341
+4 | 4 | Iceland     | 7.494 | 1.38  | 1.624 | 1.026 | 0.591 | 0.354 | 0.118
+5 | 5 | Netherlands | 7.488 | 1.396 | 1.522 | 0.999 | 0.557 | 0.322 | 0.298
+")
 
 #code-block("def run_gradient_descent(db_path: str, max_iter: int = 1000, alpha: float = 0.0005):
     \"\"\"
@@ -280,7 +299,7 @@ print_rows('happiness.db', 'happiness', 5)
         for _ in range(max_iter):
             cursor.execute(update_sql)
             conn.commit()
-
+        
         cursor.execute(\"SELECT beta0, beta1, beta2, beta3, beta4, beta5, beta6 FROM betas;\")
         beta_vals = cursor.fetchone()
         print(\"训练结束，最终 beta 参数：\")
@@ -299,7 +318,15 @@ print_rows('happiness.db', 'happiness', 5)
 
 #code-block("run_gradient_descent('happiness.db', max_iter=1000, alpha=0.0005)", lang: "python", count: 8)
 
-#output-block("训练结束，最终 beta 参数：beta0 = 1.302814beta1 = 1.199887beta2 = 1.590536beta3 = 0.964165beta4 = 0.537504beta5 = 0.250273beta6 = 0.158444")
+#output-block("训练结束，最终 beta 参数：
+beta0 = 1.302814
+beta1 = 1.199887
+beta2 = 1.590536
+beta3 = 0.964165
+beta4 = 0.537504
+beta5 = 0.250273
+beta6 = 0.158444
+")
 
 #code-block("# 预测一个国家的幸福指数
 def predict_happiness(db_path: str, gdp: float, social_support: float, healthy_life: float,
@@ -335,7 +362,8 @@ pred = predict_happiness('happiness.db', gdp=1.029, social_support=1.125, health
                   freedom=0.521, generosity=0.058, corruption=0.100)
 print(f\"预测的幸福指数为: {pred:.6f}\")", lang: "python", count: 10)
 
-#output-block("预测的幸福指数为: 5.498249")
+#output-block("预测的幸福指数为: 5.498249
+")
 
 #code-block("# 使用 2019 年 United States 的数据 Score = 6.892
 # 1.433,1.457,0.874,0.454,0.280,0.128
@@ -343,26 +371,30 @@ pred = predict_happiness('happiness.db', gdp=1.433, social_support=1.457, health
                   freedom=0.454, generosity=0.280, corruption=0.128)
 print(f\"预测的幸福指数为: {pred:.6f}\")", lang: "python", count: 11)
 
-#output-block("预测的幸福指数为: 6.516726")
+#output-block("预测的幸福指数为: 6.516726
+")
 
 #code-block("# France,6.592,1.324,1.472,1.045,0.436,0.111,0.183
 pred = predict_happiness('happiness.db', gdp=1.324, social_support=1.472, healthy_life=1.045,
                   freedom=0.436, generosity=0.111, corruption=0.183)
 print(f\"预测的幸福指数为: {pred:.6f}\")", lang: "python", count: 12)
 
-#output-block("预测的幸福指数为: 6.531412")
+#output-block("预测的幸福指数为: 6.531412
+")
 
 #code-block("# Qatar,6.374,1.684,1.313,0.871,0.555,0.220,0.167
 pred = predict_happiness('happiness.db', gdp=1.684, social_support=1.313, healthy_life=0.871,
                   freedom=0.555, generosity=0.220, corruption=0.167)
 print(f\"预测的幸福指数为: {pred:.6f}\")", lang: "python", count: 13)
 
-#output-block("预测的幸福指数为: 6.631419")
+#output-block("预测的幸福指数为: 6.631419
+")
 
 #code-block("# South Sudan,2.853,0.306,0.575,0.295,0.010,0.202,0.091
 pred = predict_happiness('happiness.db', gdp=0.306, social_support=0.575, healthy_life=0.295,
                   freedom=0.010, generosity=0.202, corruption=0.091)
 print(f\"预测的幸福指数为: {pred:.6f}\")", lang: "python", count: 14)
 
-#output-block("预测的幸福指数为: 2.939314")
+#output-block("预测的幸福指数为: 2.939314
+")
 

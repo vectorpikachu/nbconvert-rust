@@ -18,7 +18,7 @@ Options:
           Input notebook path (.ipynb)
 
   -o, --output <OUTPUT>
-          Output typst file and pdf file path (.typ)
+          Output pdf file path (.pdf)
 
       --title <TITLE>
           Title of the document

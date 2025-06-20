@@ -23,7 +23,7 @@ struct Args {
     #[arg(short, long)]
     input: PathBuf,
 
-    /// Output pdf file path (.typ)
+    /// Output pdf file path (.pdf)
     #[arg(short, long)]
     output: Option<PathBuf>,
 
@@ -78,19 +78,25 @@ fn main() -> Result<()> {
         }
     }).flatten();
 
-    let nb = notebook::read_notebook(&args.input)?;
-
-    let mut typst_content = convert_notebook(&nb)?;
-
-    // Add preface to the typst content
-    typst_content.add_preface(&title, &authors, date.as_ref());
-
     let pdf_output = if let Some(output) = &args.output {
         output.with_extension("pdf")
     } else {
         // Default output path is the same as input, but with .typ extension
         args.input.with_extension("pdf")
     };
+
+    let parent = pdf_output.parent().expect("No parent dir");
+    let download_dir = parent.join("downloads");
+    create_require_dir(&download_dir)?;
+
+    let nb = notebook::read_notebook(&args.input)?;
+
+    let mut typst_content = convert_notebook(&nb, &download_dir)?;
+
+    // Add preface to the typst content
+    typst_content.add_preface(&title, &authors, date.as_ref());
+
+    
 
     create_template(&pdf_output);
 
@@ -115,6 +121,15 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+fn create_require_dir(path: &Path) -> Result<()> {
+    if !path.exists() {
+        fs::create_dir_all(path)?;
+        println!("Created directory: {}", path.display());
+    } else {
+        println!("Directory already exists: {}", path.display());
+    }
+    Ok(())
+}
 
 /// Ensure template.typ exists in the output directory.
 /// Return the full path to the created or existing template.

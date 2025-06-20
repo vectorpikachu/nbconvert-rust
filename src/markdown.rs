@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, fs::{self, File}, io, path::{Path, PathBuf}, sync::{LazyLock, RwLock}};
+use std::{collections::{HashMap, VecDeque}, fs::{self, File}, io, path::Path, sync::{LazyLock, RwLock}};
 
 use markdown::{mdast::{self, Node}, to_mdast, Constructs, ParseOptions};
 use reqwest::blocking;
@@ -18,14 +18,6 @@ static FOOTNOTE_DEFINITION: LazyLock<RwLock<HashMap<String, String>>> = LazyLock
     RwLock::new(HashMap::new())
 });
 
-static DOWNLOAD_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    // 这里指定下载目录，例如项目根下的 "downloads"
-    let path = PathBuf::from("downloads");
-    if let Err(e) = fs::create_dir_all(&path) {
-        panic!("Failed to create downloads directory: {}", e);
-    }
-    path
-});
 
 /// Name - Path in String.
 static ATTACHMENTS: LazyLock<RwLock<HashMap<String, String>>> =
@@ -33,7 +25,7 @@ static ATTACHMENTS: LazyLock<RwLock<HashMap<String, String>>> =
 
 
 /// Parse a given markdown to Typst contents.
-pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>) -> String {
+pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>, download_dir: &Path) -> String {
     let mut result = String::new();
 
     let ast = to_mdast(
@@ -49,26 +41,29 @@ pub fn parse_markdown(source: &Vec<String>, attachments: &Option<Value>) -> Stri
     )
     .unwrap();
 
-    insert_attachments(attachments);
+    insert_attachments(attachments, download_dir);
 
-    parse_definition(&ast);
+    let mut html_queue: VecDeque<&str> = VecDeque::new();
 
-    result += parse_ast(&ast).as_str();
+    parse_definition(&ast, &mut html_queue, download_dir);
+
+    result += parse_ast(&ast, &mut html_queue, download_dir).as_str();
 
     result
 }
 
 
 /// Recursively parse the markdown ast.
-fn parse_ast(node: &Node) -> String {
+fn parse_ast(node: &Node, html_queue: &mut VecDeque<&str>, download_dir: &Path) -> String {
     let mut result = String::new();
+    
 
     match node {
         Node::Blockquote(node) => {
             // > a.
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += format!(
                 "#block-quote[{}]\n\n",
@@ -97,7 +92,7 @@ fn parse_ast(node: &Node) -> String {
             // Delete Line.
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += format!(
                 "#strike[{}]",
@@ -108,7 +103,7 @@ fn parse_ast(node: &Node) -> String {
             // Enphasis.
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += format!(
                 "#emph[{}]",
@@ -131,19 +126,25 @@ fn parse_ast(node: &Node) -> String {
         Node::Heading(node) => {
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += format!(
-                "{} {}\n\n",
+                "\n\n{} {}\n\n",
                 "=".repeat(node.depth.into()),
                 children_result
             ).as_str();
         }
         Node::Html(node) => {
-            panic!("HTML node encountered: {}", node.value);
-            // !Since the md_ast parse of HTML is really restricted,
-            // Using the html may be dangerous here!
-            // result += parse_html(node.value.as_str()).as_str();
+            // We need to record all the HTML nodes.
+            // That means, record the first <br>
+            // When meeting </br>, apply the effect.
+            if node.value == "<br>" {
+                // This is a break line.
+                result += "\\ \n";
+                return result;
+            } else {
+                result += &parse_html(node.value.as_str(), html_queue);
+            }
         }
         Node::Image(node) => {
             // ![alpha](https://example.com/favicon.ico "bravo")
@@ -151,8 +152,8 @@ fn parse_ast(node: &Node) -> String {
                 Ok(url) => {
                     match url.scheme() {
                         "http" | "https" => result += format!(
-                            "#figure(align(center, image(\"{}\", width: 50%)))",
-                            download(&url)
+                            "#figure(align(center, image(\"{}\", width: 100%)))",
+                            download(&url, download_dir)
                         ).as_str(),
                         _ => {
                             // In attachments with base64.
@@ -160,7 +161,7 @@ fn parse_ast(node: &Node) -> String {
 
                             if let Some(filepath) = ATTACHMENTS.read().unwrap().to_owned().get(filename) {
                                 result += format!(
-                                    "#figure(align(center, image(\"{}\", width: 50%)))",
+                                    "#figure(align(center, image(\"{}\", width: 100%)))",
                                     filepath
                                 ).as_str();
                             }
@@ -196,7 +197,7 @@ fn parse_ast(node: &Node) -> String {
             // [a](b)
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += format!(
                 "#link(\"{}\")[{}]",
@@ -213,7 +214,7 @@ fn parse_ast(node: &Node) -> String {
                 // 判断是 enum 还是 list.
                 result += if node.ordered { "+ " } else { "- " };
                 // 难点在于如何处理嵌套的 List.
-                let mut list_item = parse_ast(child);
+                let mut list_item = parse_ast(child, html_queue, download_dir);
                 list_item = list_item.trim_end_matches("\n").replace("\n", "\n  ");
                 list_item += "\n";
                 result += list_item.as_str();
@@ -224,7 +225,7 @@ fn parse_ast(node: &Node) -> String {
         Node::ListItem(node) => {
             // Node 是有一些Markdown content组成的.
             for child in &node.children {
-                result += parse_ast(child).as_str();
+                result += parse_ast(child, html_queue, download_dir).as_str();
             }
         }
         Node::Math(node) => {
@@ -251,7 +252,7 @@ fn parse_ast(node: &Node) -> String {
         Node::Paragraph(node) => {
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += children_result.as_str();
             result += "\n";
@@ -259,7 +260,7 @@ fn parse_ast(node: &Node) -> String {
         Node::Root(node) => {
             // This is the root node representing a doc.
             for child in &node.children {
-                result += parse_ast(child).as_str();
+                result += parse_ast(child, html_queue, download_dir).as_str();
                 result += "\n"; // Separating the paragraph.
             }
         }
@@ -267,7 +268,7 @@ fn parse_ast(node: &Node) -> String {
             // **a**
             result += "*";
             for child in &node.children {
-                result += parse_ast(child).as_str();
+                result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += "*";
         }
@@ -298,7 +299,7 @@ fn parse_ast(node: &Node) -> String {
             ).as_str();
             let mut children = node.children.clone();
             // The first row is title.
-            let mut table_header = parse_ast(&children.remove(0)); 
+            let mut table_header = parse_ast(&children.remove(0), html_queue, download_dir); 
             table_header.pop(); // Delete the newline char.
             result += format!(
                 "  table.header(
@@ -309,7 +310,7 @@ fn parse_ast(node: &Node) -> String {
             // The following rows are contents.
             let mut children_result = String::new();
             for child in &children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += children_result.as_str();
             result += ")\n\n";
@@ -319,7 +320,7 @@ fn parse_ast(node: &Node) -> String {
             result += "[";
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += children_result.as_str();
             result += "], ";
@@ -329,7 +330,7 @@ fn parse_ast(node: &Node) -> String {
             // Child of row: Cell.
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             result += children_result.as_str();
             result += "\n";
@@ -353,7 +354,7 @@ fn parse_ast(node: &Node) -> String {
 }
 
 
-pub fn parse_definition(node: &Node) {
+pub fn parse_definition(node: &Node, html_queue: &mut VecDeque<&str>, download_dir: &Path) {
     match node {
         Node::Definition(node) => {
             DEFINITION.write().unwrap().insert(node.identifier.clone(), node.url.clone());
@@ -361,7 +362,7 @@ pub fn parse_definition(node: &Node) {
         Node::FootnoteDefinition(node) => {
             let mut children_result = String::new();
             for child in &node.children {
-                children_result += parse_ast(child).as_str();
+                children_result += parse_ast(child, html_queue, download_dir).as_str();
             }
             FOOTNOTE_DEFINITION.write().unwrap().insert(node.identifier.clone(), children_result);
         }
@@ -369,9 +370,8 @@ pub fn parse_definition(node: &Node) {
     }
 }
 
-
 /// Download the file and return the file path.
-pub fn download(url: &Url) -> String {
+pub fn download(url: &Url, download_dir: &Path) -> String {
 
     let mut resp = blocking::get(url.clone()).unwrap();
 
@@ -390,17 +390,17 @@ pub fn download(url: &Url) -> String {
         filename.to_string()                // Without extension: use the name.
     };
 
-    let local_path = DOWNLOAD_DIR.join(local_name);
+    let local_path = download_dir.join(local_name.clone());
 
     let mut out = File::create(&local_path).unwrap();
 
     io::copy(&mut resp, &mut out).unwrap();
 
-    local_path.display().to_string()
+    format!("./downloads/{}", local_name)
 
 }
 
-fn insert_attachments(attachments: &Option<Value>) {
+fn insert_attachments(attachments: &Option<Value>, download_dir: &Path) {
     let obj = match attachments {
         Some(Value::Object(map)) => map,
         _ => return,
@@ -416,10 +416,60 @@ fn insert_attachments(attachments: &Option<Value>) {
             // This is a simplification, as the notebook may have multiple MIME types.
             if let Some(Value::String(data_b64)) = inner.values().next() {
                 let bytes = BASE64_STANDARD.decode(data_b64).unwrap();
-                let local_path = DOWNLOAD_DIR.join(filename);
+                let local_path = download_dir.join(filename);
                 fs::write(&local_path, &bytes).unwrap();
                 guard.insert(filename.clone(), local_path.display().to_string());
             }
+        }
+    }
+}
+
+
+
+/// This function is to parse several simple HTML tags.
+fn parse_html(html: &str, queue: &mut VecDeque<&str>) -> String {
+    match html {
+        "<b>" => {
+            // Bold text.
+            queue.push_back("<b>");
+            "*".to_string()
+        }
+        "</b>" => {
+            // End of bold text.
+            if let Some(_) = queue.pop_front() {
+                "*".to_string()
+            } else {
+                panic!("Unmatched </b> tag");
+            }
+        }
+        "<i>" => {
+            // Italic text.
+            queue.push_back("<i>");
+            "_".to_string()
+        }
+        "</i>" => {
+            // End of italic text.
+            if let Some(_) = queue.pop_front() {
+                "_".to_string()
+            } else {
+                panic!("Unmatched </i> tag");
+            }
+        }
+        "<u>" => {
+            // Underline text.
+            queue.push_back("<u>");
+            "#underline[".to_string()
+        }
+        "</u>" => {
+            // End of underline text.
+            if let Some(_) = queue.pop_front() {
+                "]".to_string()
+            } else {
+                panic!("Unmatched </u> tag");
+            }
+        }
+        _ => {
+            unimplemented!("HTML tag not implemented: {}", html);
         }
     }
 }

@@ -4,7 +4,7 @@ use crate::typst_content::{escape_code, escape_vec_code, TypstContent};
 use crate::media::process_media;
 
 use nbformat::v4::Output;
-/// 解析Jupyter Notebook.
+/// Parse Jupyter Notebook.
 use nbformat::{parse_notebook, v4, legacy, Notebook};
 
 use std::fs;
@@ -22,17 +22,17 @@ pub fn read_notebook<P: AsRef<Path>>(path: P) -> Result<Notebook> {
 }
 
 /// Convert a notebook to Typst.
-pub fn convert_notebook(notebook: &Notebook) -> Result<TypstContent> {
+pub fn convert_notebook(notebook: &Notebook, download_dir: &Path) -> Result<TypstContent> {
 
     match notebook {
-        Notebook::V4(notebook) => convert_v4_notebook(notebook),
-        Notebook::Legacy(notebook) => convert_legacy_notebook(notebook),
+        Notebook::V4(notebook) => convert_v4_notebook(notebook, download_dir),
+        Notebook::Legacy(notebook) => convert_legacy_notebook(notebook, download_dir),
     }
 
 }
 
 /// Parse a V4 Version notebook.
-pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
+pub fn convert_v4_notebook(notebook: &v4::Notebook, download_dir: &Path) -> Result<TypstContent> {
     let langugae = match &notebook.metadata.language_info {
         Some(info) => info.name.clone(),
         None => "text".to_owned()
@@ -48,10 +48,10 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
         match cell {
             v4::Cell::Code { id: _, metadata: _, execution_count, source, outputs } => {
                 result += &parse_code(source, execution_count);
-                result += &parse_output(outputs);
+                result += &parse_output(outputs, download_dir);
             }
             v4::Cell::Markdown { id:_ , metadata: _, source, attachments } => {
-                result += &parse_markdown(source, attachments);
+                result += &parse_markdown(source, attachments, download_dir);
             }
             v4::Cell::Raw { id: _, metadata: _, source } => {
                 result += source.join("\n").as_str();
@@ -64,7 +64,7 @@ pub fn convert_v4_notebook(notebook: &v4::Notebook) -> Result<TypstContent> {
 
 
 /// Parse a legacy version notebook.
-pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstContent> {
+pub fn convert_legacy_notebook(notebook: &legacy::Notebook, download_dir: &Path) -> Result<TypstContent> {
     let langugae = match &notebook.metadata.language_info {
         Some(info) => info.name.clone(),
         None => "text".to_owned()
@@ -79,10 +79,10 @@ pub fn convert_legacy_notebook(notebook: &legacy::Notebook) -> Result<TypstConte
         match cell {
             legacy::Cell::Code { id: _, metadata: _, execution_count, source, outputs } => {
                 result += &parse_code(source, execution_count);
-                result += &parse_output(outputs);
+                result += &parse_output(outputs, download_dir);
             }
             legacy::Cell::Markdown { id: _, metadata: _, source, attachments } => {
-                result += &parse_markdown(source, attachments);
+                result += &parse_markdown(source, attachments, download_dir);
             }
             legacy::Cell::Raw { id: _, metadata: _, source } => {
                 result += source.join("\n").as_str();
@@ -123,16 +123,16 @@ fn parse_code(code: &Vec<String>, count: &Option<i32>) -> String {
 }
 
 /// Parse an ouput of a given code block.
-fn parse_output(outputs: &Vec<Output>) -> String {
+fn parse_output(outputs: &Vec<Output>, download_dir: &Path) -> String {
     let mut result = String::new();
 
     for output in outputs {
         match output {
             v4::Output::DisplayData(data) => {
-                result += &process_media(&data.data);
+                result += &process_media(&data.data, download_dir);
             }
             v4::Output::ExecuteResult(data) => {
-                result += &process_media(&data.data);
+                result += &process_media(&data.data, download_dir);
             }
             v4::Output::Stream { name: _, text } => {
                 result += format!(

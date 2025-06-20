@@ -35,6 +35,7 @@ pub fn escape_code(code: &String) -> String {
         // Escape the special characters.
         let escaped_line = escape_content(line);
         result += &escaped_line;
+        result += "\n";
     }
     result
 }
